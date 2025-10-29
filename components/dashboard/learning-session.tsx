@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Avatar from "@/components/avatar/avatar";
 import { useMorphcast, getAvatarResponse } from "@/lib/hooks/useMorphcast";
 
@@ -12,13 +12,27 @@ export default function LearningSession({ onBack }: LearningSessionProps) {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [score, setScore] = useState(0);
   const [emotionState, setEmotionState] = useState<
-    "focused" | "confused" | "bored" | "happy" | "sad" | "encouraging"
+    "focused" | "confused" | "bored" | "happy" | "angry" | "disgusted"
   >("focused");
   const [sessionComplete, setSessionComplete] = useState(false);
   const [avatarMessage, setAvatarMessage] = useState<string>("");
 
+  // Guardar la última emoción para la que se mostró mensaje
+  const lastMessageEmotion = useRef<string>("");
+
+  // Control de mensajes manuales (respuestas a preguntas)
+  const manualMessageTimeout = useRef<NodeJS.Timeout | null>(null);
+  const isManualMessage = useRef(false);
+
   // Integración con Morphcast
-  const { emotionData, isInitialized, isLoading, error } = useMorphcast();
+  const {
+    emotionData,
+    isInitialized,
+    isLoading,
+    error,
+    canUpdateMessage,
+    markMessageUpdated,
+  } = useMorphcast();
 
   const questions = [
     {
@@ -43,15 +57,31 @@ export default function LearningSession({ onBack }: LearningSessionProps) {
 
   // Actualizar avatar basado en emociones detectadas por Morphcast
   useEffect(() => {
+    // No actualizar si hay un mensaje manual activo
+    if (isManualMessage.current) return;
+
     if (!emotionData) return;
 
-    const response = getAvatarResponse(emotionData);
-    setAvatarMessage(response.message);
+    // Verificar si ha pasado suficiente tiempo Y la emoción cambió
+    const emotionChanged = emotionData.emotion !== lastMessageEmotion.current;
 
-    // Mapear emociones de Morphcast a estados del avatar
+    if (canUpdateMessage() && emotionChanged) {
+      // Generar mensaje basado en la emoción ACTUAL
+      const response = getAvatarResponse(emotionData);
+      setAvatarMessage(response.message);
+
+      // Marcar que se actualizó el mensaje
+      markMessageUpdated();
+      lastMessageEmotion.current = emotionData.emotion;
+    }
+
+    // Siempre actualizar el estado visual del avatar (sin cambiar mensaje)
     switch (emotionData.emotion) {
-      case "Sad":
-        setEmotionState("sad");
+      case "Angry":
+        setEmotionState("angry");
+        break;
+      case "Disgust":
+        setEmotionState("disgusted");
         break;
       case "Happy":
         setEmotionState("happy");
@@ -63,21 +93,26 @@ export default function LearningSession({ onBack }: LearningSessionProps) {
           setEmotionState("focused");
         }
         break;
-      case "Angry":
-      case "Disgust":
-      case "Fear":
-        setEmotionState("confused");
-        break;
-      case "Surprise":
-        setEmotionState("encouraging");
-        break;
       default:
         setEmotionState("focused");
     }
-  }, [emotionData]);
+  }, [
+    emotionData?.emotion,
+    emotionData?.attention,
+    canUpdateMessage,
+    markMessageUpdated,
+  ]);
 
   const handleAnswer = (selectedIndex: number) => {
     const isCorrect = selectedIndex === questions[currentQuestion].correct;
+
+    // Marcar que hay un mensaje manual
+    isManualMessage.current = true;
+
+    // Limpiar timeout anterior si existe
+    if (manualMessageTimeout.current) {
+      clearTimeout(manualMessageTimeout.current);
+    }
 
     if (isCorrect) {
       setScore(score + 10);
@@ -90,16 +125,34 @@ export default function LearningSession({ onBack }: LearningSessionProps) {
       );
     }
 
+    // También marcar el mensaje como actualizado para resetear el cooldown
+    markMessageUpdated();
+
     setTimeout(() => {
       if (currentQuestion < questions.length - 1) {
         setCurrentQuestion(currentQuestion + 1);
         setEmotionState("focused");
-        setAvatarMessage("");
+
+        // Después de 3 segundos, permitir que los mensajes de Morphcast vuelvan
+        manualMessageTimeout.current = setTimeout(() => {
+          isManualMessage.current = false;
+          setAvatarMessage("");
+          lastMessageEmotion.current = ""; // Resetear para forzar nuevo mensaje
+        }, 3000);
       } else {
         setSessionComplete(true);
       }
     }, 2000);
   };
+
+  // Limpiar timeouts al desmontar
+  useEffect(() => {
+    return () => {
+      if (manualMessageTimeout.current) {
+        clearTimeout(manualMessageTimeout.current);
+      }
+    };
+  }, []);
 
   if (sessionComplete) {
     return (
@@ -179,10 +232,12 @@ export default function LearningSession({ onBack }: LearningSessionProps) {
 
       {isInitialized && (
         <div className="glass-card text-center text-green-300">
-          <p className="text-sm">✅ Detección de emociones activada</p>
+          <p className="text-sm">
+            ✅ Detección de emociones activada (mensajes cada 8 segundos)
+          </p>
           {emotionData && (
             <p className="text-xs mt-1 text-white/60">
-              Emoción: {emotionData.emotion} | Atención:{" "}
+              Emoción actual: {emotionData.emotion} | Atención:{" "}
               {Math.round(emotionData.attention * 100)}%
             </p>
           )}

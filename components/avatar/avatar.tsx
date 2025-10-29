@@ -1,7 +1,7 @@
 "use client";
 
 interface AvatarProps {
-  emotion: "focused" | "confused" | "bored" | "happy" | "sad" | "encouraging";
+  emotion: "focused" | "confused" | "bored" | "happy" | "angry" | "disgusted";
   message?: string;
   showAttention?: boolean;
   attentionLevel?: number;
@@ -38,17 +38,17 @@ export default function Avatar({
       message: "¡Excelente respuesta!",
       gradient: "from-primary via-accent to-secondary",
     },
-    sad: {
-      eyes: "• •",
-      mouth: "n",
-      message: "No te preocupes, estoy aquí para ayudarte",
-      gradient: "from-blue-400 to-blue-600",
+    angry: {
+      eyes: "◣ ◢",
+      mouth: "⌢",
+      message: "Respira... todo estará bien",
+      gradient: "from-red-500 to-orange-600",
     },
-    encouraging: {
-      eyes: "★ ★",
-      mouth: "∪",
-      message: "¡Tú puedes lograrlo!",
-      gradient: "from-yellow-400 to-orange-500",
+    disgusted: {
+      eyes: "◔ ◔",
+      mouth: "╯",
+      message: "Hagamos esto más interesante",
+      gradient: "from-purple-500 to-pink-600",
     },
   };
 
