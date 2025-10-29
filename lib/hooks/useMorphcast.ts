@@ -32,7 +32,7 @@ interface EmotionFrame {
 
 const HISTORY_SIZE = 15; // Número de frames a considerar
 const CHANGE_THRESHOLD = 0.6; // Umbral para cambiar la emoción predominante (60%)
-const MESSAGE_COOLDOWN = 8000; // 8 segundos de espera mínima entre cambios de mensaje
+const MESSAGE_COOLDOWN = 4000; // 8 segundos de espera mínima entre cambios de mensaje
 
 export function useMorphcast(
   licenseKey: string = "5791ee3605563e92cd88316fd0600abab7829fe8fdc4",

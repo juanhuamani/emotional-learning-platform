@@ -232,9 +232,7 @@ export default function LearningSession({ onBack }: LearningSessionProps) {
 
       {isInitialized && (
         <div className="glass-card text-center text-green-300">
-          <p className="text-sm">
-            ✅ Detección de emociones activada (mensajes cada 8 segundos)
-          </p>
+          <p className="text-sm">Detección de emociones activada</p>
           {emotionData && (
             <p className="text-xs mt-1 text-white/60">
               Emoción actual: {emotionData.emotion} | Atención:{" "}
